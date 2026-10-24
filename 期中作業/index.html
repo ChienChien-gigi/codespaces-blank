@@ -1,0 +1,983 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>順水漫步 - 台南歷史與景點探索</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts for Retro Style -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Noto+Serif+TC:wght@400;600;700&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#750000',     // 磚紅/深紅
+                        primaryDark: '#A23400', // 焦橙紅
+                        secondary: '#003E3E',   // 復古墨綠
+                        paper: '#F7F3E9',       // 復古米黃紙張色
+                        paperDark: '#EADFC9',   // 較深的卡紙色
+                        vintageDull: '#4A3E3D', // 復古深褐內文
+                    },
+                    fontFamily: {
+                        serifTC: ['"Noto Serif TC"', 'serif'],
+                        calligraphy: ['"Ma Shan Zheng"', 'cursive'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {    
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        }
+
+         /* 滿版底層背景 Canvas */
+        #tainan-bg-canvas {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        z-index: -1; /* 確保放在最底層 */
+        pointer-events: none; /* 避免擋住上方內容的滑鼠點擊事件 */
+         }
+
+         /* 確保內容層排在背景之上 */
+        .content-wrapper {
+        position: relative;
+        z-index: 1;
+        }
+
+
+
+        /* 漢堡選單動態 */
+        #navMenu {
+            transition: transform 0.3s ease-in-out;
+        }
+        #navMenu.closed {
+            transform: translateX(-100%);
+        }
+
+        /* 子選單展開 */
+        .submenu {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease-out;
+        }
+        .has-submenu.open .submenu {
+            max-height: 500px;
+        }
+        .has-submenu.open .submenu-arrow {
+            transform: rotate(180deg);
+        }
+
+        /* 歷史疊影 Hero 淡入淡出 */
+        @keyframes overlayPulse {
+            0% { opacity: 0.3; }
+            50% { opacity: 0.7; }
+            100% { opacity: 0.3; }
+        }
+        .history-layer {
+            animation: overlayPulse 8s infinite ease-in-out;
+        }
+
+        /* 3D 折疊地圖效果 */
+        /* 外層 */
+        .map-container {
+            perspective: 1200px;
+            width: 100%;
+            max-width: 100%;
+            margin: 0 auto;
+        }
+        /* 摺疊層 */
+        .map-fold {
+            transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.8s;
+            transform-style: preserve-3d;
+        }
+        /* 左層 */
+        .folded .fold-left {
+            transform: rotateY(35deg) scaleX(0.95);
+            transform-origin: right center;
+        }
+        /* 中層 */
+        .folded .fold-center {
+            transform: scaleX(0.9);
+        }
+        /* 右層 */
+        .folded .fold-right {
+            transform: rotateY(-35deg) scaleX(0.95);
+            transform-origin: left center;
+        }
+
+        /* 景點地標 Hover 動畫 */
+        .map-marker {
+            transition: transform 0.2s ease, filter 0.2s ease;
+        }
+        .map-marker:hover {
+            transform: scale(1.15) translateY(-5px);
+            filter: drop-shadow(0 6px 8px rgba(117, 0, 0, 0.4));
+        }
+
+        /* 手繪風邊框與按鈕 */
+        .hand-drawn-border {
+            border: 2px solid #750000;
+            border-radius: 255px 15px 225px 15px/15px 225px 15px 255px;
+        }
+        .hand-drawn-btn {
+            border: 2px solid #003E3E;
+            border-radius: 20px 5px 25px 5px/5px 20px 5px 25px;
+            box-shadow: 3px 3px 0px #003E3E;
+            transition: all 0.2s ease;
+        }
+        .hand-drawn-btn:hover {
+            transform: translate(-2px, -2px);
+            box-shadow: 5px 5px 0px #003E3E;
+        }
+        .hand-drawn-btn:active {
+            transform: translate(1px, 1px);
+            box-shadow: 1px 1px 0px #003E3E;
+        }
+
+        /* 底層超連結 */
+        footer li a {
+        color: white;
+        text-decoration: none;
+        font-weight: bold;
+        }
+
+        footer li a:hover {
+        color: #e46815;
+        }
+    </style>
+</head>
+
+
+
+<body class="min-h-screen flex flex-col justify-between relative overflow-x-hidden">
+
+    <!-- 動態背景 -->
+    <canvas id="tainan-bg-canvas"></canvas>
+    <div class="content-wrapper">
+
+    <!-- 頂部導覽列 (Top Bar) -->
+    <header class="fixed top-0 left-0 w-full z-40 bg-paper/90 backdrop-blur-md border-b-2 border-primary/20 px-4 py-3 flex items-center justify-between shadow-sm">
+        <div class="flex items-center space-x-3">
+            <!-- 漢堡選單開關按鈕 -->
+            <button id="navToggle" class="text-2xl text-primary focus:outline-none w-10 h-10 flex items-center justify-center rounded-full hover:bg-paperDark/50 transition" aria-label="選單">
+                <i id="toggleIcon" class="fa-solid fa-bars"></i>
+            </button>
+            
+            <!-- 返回首頁按鈕（於景點/收藏頁面時可視） -->
+            <button id="backToHomeBtn" onclick="showSection('home')" class="hidden flex items-center space-x-1 text-secondary font-semibold hover:text-primary transition text-base border-l-2 border-primary/30 pl-3">
+                <i class="fa-solid fa-arrow-left"></i>
+                <span>回首頁</span>
+            </button>
+        </div>
+
+        <h1 class="text-xl md:text-2xl font-bold font-serifTC text-primary tracking-widest cursor-pointer text-center" 
+            onclick="showSection('home')">慢讀府城 
+            <span class="text-xs md:text-sm font-normal text-center block mt-1">時間很慢 故事很老 台南剛好</span>
+        </h1>
+
+        <div class="w-10"></div> <!-- 保持平衝區塊 -->
+    </header>
+
+    <!-- 漢堡選單抽屜 (Hamburger Menu Drawer) -->
+    <nav id="navMenu" class="closed fixed top-0 left-0 h-full w-72 md:w-80 bg-paperDark border-r-4 border-primary z-50 shadow-2xl p-6 flex flex-col justify-between overflow-y-auto">
+        <div>
+            <div class="flex items-center justify-between pb-6 border-b border-primary/30">
+                <span class="text-2xl font-bold text-primary font-calligraphy tracking-wider">府城選單</span>
+                <button id="closeNavBtn" class="text-2xl text-primary hover:text-primaryDark">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- 選單列表 -->
+            <ul id="navLinks" class="mt-6 space-y-4 text-lg">
+                <!-- 第一項：首頁 -->
+                <li>
+                    <a href="#" onclick="showSection('home'); closeNav(); return false;" class="flex items-center space-x-3 text-secondary font-bold hover:text-primary transition py-2 px-3 rounded-lg hover:bg-paper/60">
+                        <i class="fa-solid fa-house"></i>
+                        <span>首頁</span>
+                    </a>
+                </li>
+
+                <!-- 第二項：景點（帶子選單） -->
+                <li class="has-submenu">
+                    <div class="submenu-toggle flex items-center justify-between text-secondary font-bold hover:text-primary transition py-2 px-3 rounded-lg hover:bg-paper/60 cursor-pointer">
+                        <div class="flex items-center space-x-3">
+                            <i class="fa-solid fa-map-location-dot"></i>
+                            <span>景點巡禮</span>
+                        </div>
+                        <i class="fa-solid fa-caret-down submenu-arrow transition-transform duration-300"></i>
+                    </div>
+                    <!-- 子選單內容 -->
+                    <ul class="submenu pl-8 mt-2 space-y-2 border-l-2 border-primary/30 text-base">
+                        <li><a href="#" onclick="openSpotDetail('station'); closeNav(); return false;" class="block py-1 hover:text-primary transition">台南車站</a></li>
+                        <li><a href="#" onclick="openSpotDetail('shennong'); closeNav(); return false;" class="block py-1 hover:text-primary transition">神農街</a></li>
+                        <li><a href="#" onclick="openSpotDetail('guohua'); closeNav(); return false;" class="block py-1 hover:text-primary transition">國華街美食</a></li>
+                        <li><a href="#" onclick="openSpotDetail('chikan'); closeNav(); return false;" class="block py-1 hover:text-primary transition">赤崁樓</a></li>
+                        <li><a href="#" onclick="openSpotDetail('confucius'); closeNav(); return false;" class="block py-1 hover:text-primary transition">台南孔廟</a></li>
+                        <li><a href="#" onclick="openSpotDetail('hayashi'); closeNav(); return false;" class="block py-1 hover:text-primary transition">林百貨</a></li>
+                        <li><a href="#" onclick="openSpotDetail('haian'); closeNav(); return false;" class="block py-1 hover:text-primary transition">海安路藝術街</a></li>
+                    </ul>
+                </li>
+
+                <!-- 第三項：收藏 -->
+                <li>
+                    <a href="#" onclick="showSection('bookmarks'); closeNav(); return false;" class="flex items-center space-x-3 text-secondary font-bold hover:text-primary transition py-2 px-3 rounded-lg hover:bg-paper/60">
+                        <i class="fa-solid fa-bookmark"></i>
+                        <span>我的府城拾遺</span>
+                    </a>
+                </li>
+            </ul>
+        </div>
+
+        <!-- 選單底部備註 -->
+        <div class="text-xs text-vintageDull/70 pt-6 border-t border-primary/20 text-center">
+            <p>河水惦惦仔流，文化慢慢仔成</p>
+            <p class="mt-1">© 2026 Tainan Travel Guide</p>
+        </div>
+    </nav>
+    <div id="navOverlay" class="hidden fixed inset-0 bg-black/40 z-40" onclick="closeNav()"></div>
+
+    <!-- 主要內容區塊 container -->
+    <main class="mt-16 flex-grow">
+
+        <!-- ==================== 1. 首頁 SECTION ==================== -->
+        <section id="homeSection" class="block space-y-12 pb-12">
+
+            <!-- (1) Hero Section：歷史疊影動態橫幅 -->
+            <div id="heroBanner" class="relative h-[60vh] min-h-[380px] w-full bg-secondary overflow-hidden cursor-pointer flex items-center justify-center shadow-inner" title="台南印記">
+                <!-- 歷史疊影背景 (荷蘭/明鄭/清朝/日治) -->
+                <div class="absolute inset-0 bg-cover bg-center opacity-40 history-layer filter sepia contrast-125" style="background-image: url('https://gallery.twtainan.net/image/8529/1024x768');"></div>
+                <div class="absolute inset-0 bg-gradient-to-t from-primary/80 via-transparent to-secondary/60"></div>
+
+                <div class="relative z-10 text-center px-4">
+                    <p class="text-paperDark text-sm md:text-lg tracking-widest mb-2 font-serifTC">荷蘭 ‧ 明鄭 ‧ 清領 ‧ 日治</p>
+                    <h2 class="text-3xl md:text-5xl font-bold text-paper font-serifTC tracking-wider drop-shadow-md">
+                        四百年歷史疊影的古都風華
+                    </h2>
+                    <p class="text-paper/80 text-xs md:text-sm mt-3 tracking-widest">【 台南印記 】</p>
+                </div>
+
+                <!-- 點擊跳出的「台南」特效 -->
+                <div id="tainanStamp" class="absolute z-20 opacity-0 pointer-events-none transition-all duration-700 transform scale-50 flex items-center justify-center">
+                    
+                    <a title="Tainan City Government, Public domain, via Wikimedia Commons" 
+                        href="https://commons.wikimedia.org/wiki/File:Tainan_City_Government_Logo.svg">
+                    <img width="360" 
+                        alt="Tainan City Government Logo" 
+                        src="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/44/Tainan_City_Government_Logo.svg/960px-Tainan_City_Government_Logo.svg.png?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=thumbnail">
+                    </a>
+
+                </div>
+            </div>
+
+            <!-- (2) 三折頁懷舊互動地圖 -->
+            <div class="max-w-5xl mx-auto px-4">
+                <div class="text-center mb-6">
+                    <span class="text-primary font-bold text-sm tracking-widest block uppercase">Interactive Map</span>
+                    <h3 class="text-2xl md:text-3xl font-bold text-secondary font-serifTC inline-block border-b-2 border-primary pb-1">
+                        府城古蹟漫步地圖
+                    </h3>
+                    <p class="text-sm text-vintageDull/80 mt-2">點開台南400
+                    </p>
+                    <button id="toggleMapFoldBtn" class="mt-4 hand-drawn-btn px-6 py-2 bg-primary text-paper font-bold hover:bg-primaryDark transition text-sm">
+                        <i class="fa-solid fa-map mr-2"></i><span id="foldBtnText">展開台南</span>
+                    </button>
+                </div>
+
+                <!-- 地圖本體 -->
+                <div class="map-container w-full my-6">
+                    <div id="interactiveMap" class="folded map-fold grid grid-cols-1 md:grid-cols-3 gap-0 bg-[#E8DFCA] p-4 md:p-6 rounded-lg border-4 border-primary/40 shadow-xl relative min-h-[450px]">
+                        
+                        <!-- 背景古地圖圖紋 -->
+                        <div class="absolute inset-0 opacity-15 bg-cover bg-center pointer-events-none" style="background-image: url('https://png.pngtree.com/thumb_back/fh260/background/20250508/pngtree-a-vintage-map-background-with-faded-lines-and-compass-rose-perfect-image_17272002.jpg');"></div>
+
+                        <!-- 7大景點 地標按鈕定位層 -->
+                        <div class="absolute inset-0 z-20 p-4 md:p-8 flex flex-wrap justify-around items-center">
+                            
+                            <!-- 1. 台南車站 -->
+                            <div onclick="openSpotDetail('station')" class="map-marker cursor-pointer flex flex-col items-center group m-2" style="position: absolute; top: 12%; left: 75%;">
+                                <div class="w-12 h-12 rounded-full bg-primary text-paper flex items-center justify-center border-2 border-paper shadow-md group-hover:bg-secondary">
+                                    <i class="fa-solid fa-train text-lg"></i>
+                                </div>
+                                <span class="bg-paper/90 text-primary font-bold text-xs px-2 py-0.5 rounded mt-1 border border-primary/30 shadow">台南車站</span>
+                            </div>
+
+                            <!-- 2. 神農街 -->
+                            <div onclick="openSpotDetail('shennong')" class="map-marker cursor-pointer flex flex-col items-center group m-2" style="position: absolute; top: 45%; left: 18%;">
+                                <div class="w-12 h-12 rounded-full bg-primary text-paper flex items-center justify-center border-2 border-paper shadow-md group-hover:bg-secondary">
+                                    <i class="fa-solid fa-lantern text-lg"></i>
+                                </div>
+                                <span class="bg-paper/90 text-primary font-bold text-xs px-2 py-0.5 rounded mt-1 border border-primary/30 shadow">神農街</span>
+                            </div>
+
+                            <!-- 3. 國華街 -->
+                            <div onclick="openSpotDetail('guohua')" class="map-marker cursor-pointer flex flex-col items-center group m-2" style="position: absolute; top: 65%; left: 32%;">
+                                <div class="w-12 h-12 rounded-full bg-primary text-paper flex items-center justify-center border-2 border-paper shadow-md group-hover:bg-secondary">
+                                    <i class="fa-solid fa-utensils text-lg"></i>
+                                </div>
+                                <span class="bg-paper/90 text-primary font-bold text-xs px-2 py-0.5 rounded mt-1 border border-primary/30 shadow">國華街</span>
+                            </div>
+
+                            <!-- 4. 赤崁樓 -->
+                            <div onclick="openSpotDetail('chikan')" class="map-marker cursor-pointer flex flex-col items-center group m-2" style="position: absolute; top: 30%; left: 42%;">
+                                <div class="w-12 h-12 rounded-full bg-primary text-paper flex items-center justify-center border-2 border-paper shadow-md group-hover:bg-secondary">
+                                    <i class="fa-solid fa-gopuram text-lg"></i>
+                                </div>
+                                <span class="bg-paper/90 text-primary font-bold text-xs px-2 py-0.5 rounded mt-1 border border-primary/30 shadow">赤崁樓</span>
+                            </div>
+
+                            <!-- 5. 台南孔廟 -->
+                            <div onclick="openSpotDetail('confucius')" class="map-marker cursor-pointer flex flex-col items-center group m-2" style="position: absolute; top: 70%; left: 60%;">
+                                <div class="w-12 h-12 rounded-full bg-primary text-paper flex items-center justify-center border-2 border-paper shadow-md group-hover:bg-secondary">
+                                    <i class="fa-solid fa-book-open text-lg"></i>
+                                </div>
+                                <span class="bg-paper/90 text-primary font-bold text-xs px-2 py-0.5 rounded mt-1 border border-primary/30 shadow">台南孔廟</span>
+                            </div>
+
+                            <!-- 6. 林百貨 -->
+                            <div onclick="openSpotDetail('hayashi')" class="map-marker cursor-pointer flex flex-col items-center group m-2" style="position: absolute; top: 52%; left: 52%;">
+                                <div class="w-12 h-12 rounded-full bg-primary text-paper flex items-center justify-center border-2 border-paper shadow-md group-hover:bg-secondary">
+                                    <i class="fa-solid fa-building-flag text-lg"></i>
+                                </div>
+                                <span class="bg-paper/90 text-primary font-bold text-xs px-2 py-0.5 rounded mt-1 border border-primary/30 shadow">林百貨</span>
+                            </div>
+
+                            <!-- 7. 海安路 -->
+                            <div onclick="openSpotDetail('haian')" class="map-marker cursor-pointer flex flex-col items-center group m-2" style="position: absolute; top: 25%; left: 15%;">
+                                <div class="w-12 h-12 rounded-full bg-primary text-paper flex items-center justify-center border-2 border-paper shadow-md group-hover:bg-secondary">
+                                    <i class="fa-solid fa-palette text-lg"></i>
+                                </div>
+                                <span class="bg-paper/90 text-primary font-bold text-xs px-2 py-0.5 rounded mt-1 border border-primary/30 shadow">海安路</span>
+                            </div>
+                        </div>
+
+                        <!-- 3折頁陰影疊加視覺 -->
+                        <div class="fold-left border-r border-vintageDull/20 hidden md:block"></div>
+                        <div class="fold-center border-r border-vintageDull/20 hidden md:block"></div>
+                        <div class="fold-right hidden md:block"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- (3) 行動呼籲區塊 (CTA Section) -->
+            <div class="max-w-4xl mx-auto px-4 mt-12">
+                <div class="bg-secondary text-paper rounded-2xl p-8 md:p-10 text-center relative overflow-hidden shadow-xl border-2 border-primary">
+                    <div class="absolute -right-10 -bottom-10 opacity-10 text-9xl">
+                        <i class="fa-solid fa-landmark"></i>
+                    </div>
+                    <h3 class="text-2xl md:text-3xl font-serifTC font-bold mb-3 tracking-wide">探索台南老時光 ‧ 規劃你的復古漫步旅程</h3>
+                    <p class="text-paperDark text-base md:text-lg mb-6 max-w-xl mx-auto">穿梭巷弄尋訪百年古蹟、品嚐老街道地美食。立即將喜愛的景點加入隨身清單！</p>
+                    <button onclick="showSection('bookmarks')" class="hand-drawn-btn px-8 py-3 bg-primaryDark text-paper font-bold hover:bg-primary transition text-lg inline-flex items-center space-x-2">
+                        <i class="fa-solid fa-pen-to-square"></i>
+                        <span>開始規劃個人行程</span>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- ==================== 2. 景點介紹頁面 (SPOT DETAIL SECTION) ==================== -->
+        <section id="spotDetailSection" class="hidden max-w-4xl mx-auto px-4 py-6 space-y-8">
+            
+            <!-- 手繪風 Banner 橫幅 -->
+            <div class="relative h-64 md:h-80 w-full rounded-2xl overflow-hidden border-4 border-primary shadow-lg">
+                <img id="spotBannerImg" src="" alt="景點圖片" class="w-full h-full object-cover">
+                <div class="absolute inset-0 bg-gradient-to-t from-primary/90 via-transparent to-transparent"></div>
+                <div class="absolute bottom-4 left-6 text-paper">
+                    <h2 id="spotTitle" class="text-3xl md:text-4xl font-bold font-serifTC tracking-widest">景點名稱</h2>
+                    <p id="spotSubTitle" class="text-sm md:text-base text-paperDark font-light mt-1">景點副標題</p>
+                </div>
+            </div>
+
+            <!-- 景點介紹與加入收藏列 -->
+            <div class="bg-paperDark/40 rounded-xl p-6 border-2 border-primary/20 space-y-6">
+                <div class="flex flex-wrap items-center justify-between gap-4 border-b border-primary/20 pb-4">
+                    <button id="openGoogleMapBtn" onclick="" class="hand-drawn-btn px-5 py-2.5 bg-secondary text-paper text-base font-bold flex items-center space-x-2 hover:bg-primary transition">
+                        <i class="fa-solid fa-location-dot text-red-400"></i>
+                        <span>開啟 Google 地圖定位</span>
+                    </button>
+
+                    <button id="addCurrentToBookmarkBtn" onclick="" class="hand-drawn-btn px-5 py-2.5 bg-primary text-paper text-base font-bold flex items-center space-x-2 hover:bg-primaryDark transition">
+                        <i class="fa-solid fa-heart"></i>
+                        <span>加入收藏清單</span>
+                    </button>
+                </div>
+
+                <!-- 文字介紹區塊 (可再自行修改) -->
+                <div>
+                    <h4 class="text-xl font-bold text-primary mb-2 border-l-4 border-primary pl-3">景點簡介與歷史</h4>
+                    <p id="spotDescription" class="text-vintageDull leading-relaxed text-base md:text-lg">景點介紹載入中...</p>
+                </div>
+
+                <!-- 交通資訊區塊 (走路10分鐘內公車/火車/YouBike) -->
+                <div class="bg-paper p-5 rounded-lg border border-primary/30 space-y-3">
+                    <h4 class="text-lg font-bold text-secondary flex items-center space-x-2">
+                        <i class="fa-solid fa-bus text-primary"></i>
+                        <span>周邊交通指南</span>
+                    </h4>
+                    <!-- 動態填入交通資訊 -->
+                    <ul id="spotTransportList" class="space-y-2 text-base text-vintageDull list-disc pl-5"></ul>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- ==================== 3. 收藏頁面 (BOOKMARKS SECTION) ==================== -->
+        <section id="bookmarksSection" class="hidden max-w-4xl mx-auto px-4 py-6 space-y-6">
+            
+            <div class="flex items-center justify-between">
+                <h2 class="text-2xl md:text-3xl font-bold text-primary font-serifTC flex items-center space-x-2">
+                    <i class="fa-solid fa-bookmark text-secondary"></i>
+                    <span>想去景點與行程規劃</span>
+                </h2>
+
+                <!-- 右上角 "+" 新增按鈕 -->
+                <button onclick="openAddModal()" class="w-12 h-12 rounded-full bg-primary text-paper text-2xl font-bold flex items-center justify-center hover:bg-primaryDark transition shadow-lg hand-drawn-btn" title="新增想去之地">
+                    <i class="fa-solid fa-plus"></i>
+                </button>
+            </div>
+
+            <!-- 進度條區塊 -->
+            <div class="bg-paperDark/60 p-4 rounded-xl border border-primary/30 space-y-2">
+                <div class="flex justify-between items-center text-sm font-bold text-secondary">
+                    <span>府城踩點累積進度</span>
+                    <span id="progressPercentageText" 
+                          class="text-primary font-bold text-base">0%
+                    </span>
+                </div>
+                <div class="w-full bg-paper rounded-full h-4 overflow-hidden border border-primary/20">
+                    <div id="progressBar" 
+                         class="bg-primary h-full transition-all duration-500 rounded-full" 
+                         style="width: 0%">
+                    </div>
+                </div>
+            </div>
+
+            <!-- 分類篩選按鈕列 -->
+            <div class="flex flex-wrap gap-2 pt-2 border-b border-primary/20 pb-4" id="filterBtnContainer">
+                <button onclick="filterBookmarks('全部')" class="filter-btn active px-4 py-1.5 rounded-full text-sm font-bold bg-primary text-paper border border-primary">全部</button>
+                <button onclick="filterBookmarks('好玩')" class="filter-btn px-4 py-1.5 rounded-full text-sm font-bold bg-paper text-secondary border border-secondary/40 hover:bg-paperDark">好玩</button>
+                <button onclick="filterBookmarks('好吃')" class="filter-btn px-4 py-1.5 rounded-full text-sm font-bold bg-paper text-secondary border border-secondary/40 hover:bg-paperDark">好吃</button>
+                <button onclick="filterBookmarks('好逛')" class="filter-btn px-4 py-1.5 rounded-full text-sm font-bold bg-paper text-secondary border border-secondary/40 hover:bg-paperDark">好逛</button>
+                <button onclick="filterBookmarks('好文青')" class="filter-btn px-4 py-1.5 rounded-full text-sm font-bold bg-paper text-secondary border border-secondary/40 hover:bg-paperDark">好文青</button>
+                <button onclick="filterBookmarks('其他')" class="filter-btn px-4 py-1.5 rounded-full text-sm font-bold bg-paper text-secondary border border-secondary/40 hover:bg-paperDark">其他</button>
+            </div>
+
+            <!-- 收藏清單 Container (折疊卡片列表) -->
+            <div id="bookmarkList" class="space-y-4">
+                <!-- 動態注入收藏項目 -->
+            </div>
+        </section>
+
+    </main>
+
+    <!-- 新增景點彈出框 Modal -->
+    <div id="addModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+        <div class="bg-paper p-6 rounded-2xl border-4 border-primary w-full max-w-md shadow-2xl space-y-4">
+            <h3 class="text-xl font-bold text-primary border-b border-primary/20 pb-2">新增漫步地點</h3>
+            
+            <input type="text" id="newSpotInput" placeholder="增加想去之地" class="w-full px-4 py-3 rounded-lg border-2 border-secondary/40 bg-white focus:outline-none focus:border-primary text-base placeholder-vintageDull/50">
+
+            <div class="flex justify-between items-center pt-2">
+                <!-- 取消按鈕 (左側) -->
+                <button onclick="closeAddModal()" class="px-5 py-2 rounded-lg bg-gray-300 text-vintageDull font-bold hover:bg-gray-400 transition">
+                    取消
+                </button>
+                <!-- 增加按鈕 (右側) -->
+                <button onclick="addNewBookmark()" class="px-6 py-2 rounded-lg bg-primary text-paper font-bold hover:bg-primaryDark transition">
+                    增加
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 頁尾 Footer -->
+    <footer class="bg-secondary text-paper/80 text-center py-8 border-t-4 border-primary mt-12 text-sm">
+        <div class="max-w-4xl mx-auto px-4 space-y-2">
+            <p class="font-serifTC text-base text-paper font-semibold">府城漫步 ‧ 台南懷舊互動網頁</p>
+            <p class="text-xs text-paperDark/70">台南，用水與時間，和百年軼事相遇</p>
+        </div>
+        <li class="fz-16px mb-12px mb-0-last lh-initial undefined">
+            <a class="d-flex align-items-center text-default hover-primary trs-all" 
+               title="台南旅遊網" 
+               href="https://www.twtainan.net/zh-tw/">台南旅遊網
+            </a>
+        </li>
+    </footer>
+
+    <!-- ==================== JAVASCRIPT 邏輯 ==================== -->
+    <script>
+        /* ================= 1. 景點資料庫 ================= */
+        const spotsData = {
+            station: {
+                name: '台南車站',
+                subtitle: '經典日治巴洛克風格鐵道古蹟',
+                img: 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?q=80&w=800&auto=format&fit=crop',
+                googleMap: 'https://maps.google.com/?q=台南車站',
+                desc: '台南車站啟用於日治時期，經典的二階洋樓式建築風格，承載了無數旅人對府城的第一印象。鄰近台南公園與文創園區，是探索府城古都最佳的起點。',
+                transports: [
+                    '大台南公車：站前北站/南站搭乘綠線、藍線、紅線至市區各景點。',
+                    '台灣好行：88府城巡迴線、99安平線起點站。',
+                    'YouBike 2.0：台南火車站前站 exit 旁設有租賃站。'
+                ]
+            },
+            shennong: {
+                name: '神農街',
+                subtitle: '保留清代木造街屋構造的文青燈籠老街',
+                img: 'https://images.unsplash.com/photo-1508804185872-d7badad00f7d?q=80&w=800&auto=format&fit=crop',
+                googleMap: 'https://maps.google.com/?q=神農街',
+                desc: '神農街（原名北勢街）是台南保存最完整的清代老街之一。兩旁為古樸的兩層樓木造街屋，夜晚掛滿古風燈籠，進駐許多手作文創店家與深夜咖啡館。',
+                transports: [
+                    '公車：搭乘77路、88路至「神農街」站，下車步行約2分鐘。',
+                    '公車：搭乘3路、5路至「西門民權路口」站，步行約6分鐘。',
+                    'YouBike 2.0：海安神農路口設有站點。'
+                ]
+            },
+            guohua: {
+                name: '國華街',
+                subtitle: '府城經典小吃聚集地與庶民美食天堂',
+                img: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?q=80&w=800&auto=format&fit=crop',
+                googleMap: 'https://maps.google.com/?q=國華街小吃',
+                desc: '貫穿台南市區的國華街，是台南美食的核心據點。碗粿、春捲、小卷米粉、牛肉湯等無數傳承數十年的老店林立，滿載道地的府城美味記憶。',
+                transports: [
+                    '公車：搭乘14路、88路至「水仙宮」站，下車即達國華街三段。',
+                    '步行：自赤崁樓步行約8分鐘即可抵達。'
+                ]
+            },
+            chikan: {
+                name: '赤崁樓',
+                subtitle: '荷蘭時期普羅民遮城與九座御龜碑',
+                img: 'https://images.unsplash.com/photo-1590080875515-8a3a8dc5735e?q=80&w=800&auto=format&fit=crop',
+                googleMap: 'https://maps.google.com/?q=赤崁樓',
+                desc: '西元1653年由荷蘭人興建的「普羅民遮城」，歷經鄭成功時期與清領時期演變。庭園中九座清代鰲座碑（御龜碑）與紅瓦飛檐，為台南代表性一級古蹟。',
+                transports: [
+                    '公車：搭乘3路、5路、88路、99路至「赤崁樓」站下車直達。',
+                    'YouBike 2.0：赤崁樓停車場旁設有租賃站。'
+                ]
+            },
+            confucius: {
+                name: '台南孔廟',
+                subtitle: '全臺首學 ‧ 紅瓦朱牆的靜謐學堂',
+                img: 'https://images.unsplash.com/photo-1570168007204-dfb528c6958f?q=80&w=800&auto=format&fit=crop',
+                googleMap: 'https://maps.google.com/?q=台南孔廟',
+                desc: '建於明鄭永曆十九年（1665年），是台灣第一座孔廟，故稱「全臺首學」。朱紅色的牆垣、古木參天的庭園，展現出端莊濃厚的文化底蘊。',
+                transports: [
+                    '公車：搭乘2路、88路至「孔廟 (台灣文學館)」站，步行約3分鐘。',
+                    'YouBike 2.0：南門路孔廟園區入口處。'
+                ]
+            },
+            hayashi: {
+                name: '林百貨',
+                subtitle: '昭和風華重現 ‧ 全台唯一指針式電梯百貨',
+                img: 'https://images.unsplash.com/photo-1513694203232-719a280e022f?q=80&w=800&auto=format&fit=crop',
+                googleMap: 'https://maps.google.com/?q=林百貨',
+                desc: '開幕於1932日治時期的「五層樓仔」，是當時台南最高地標。經修復後以文創百貨重新開幕，保留了懷舊的指針式電梯與頂樓鳥居遺跡。',
+                transports: [
+                    '公車：搭乘1路、7路、19路至「林百貨 (中正路)」站下車直達。',
+                    '步行：自台南孔廟步行約5分鐘即可抵達。'
+                ]
+            },
+            haian: {
+                name: '海安路藝術街',
+                subtitle: '街道美術館 ‧ 露天裝置藝術與夜間酒吧聚落',
+                img: 'https://images.unsplash.com/photo-1569336415962-a4bd9f69cd83?q=80&w=800&auto=format&fit=crop',
+                googleMap: 'https://maps.google.com/?q=海安路藝術街',
+                desc: '透過街道美術館計畫，將海安路通風井與兩側牆面轉化為藝術裝置。白天是悠閒的文創街區，夜晚則化身為燈火輝煌的酒吧與茶館集散地。',
+                transports: [
+                    '公車：搭乘77路至「海安路」站下車。',
+                    'YouBike 2.0：海安民生路口設有站點。'
+                ]
+            }
+        };
+
+        /* ================= 2. 預設收藏資料與狀態 ================= */
+        let bookmarks = JSON.parse(localStorage.getItem('tainan_bookmarks')) || [
+            { id: 1, name: '赤崁樓古蹟尋幽', category: '好文青', visited: false, notes: '記得買赤崁樓限定魁星餅！' },
+            { id: 2, name: '國華街牛肉湯與阿松割包', category: '好吃', visited: true, notes: '早起比較不用排隊' },
+            { id: 3, name: '神農街夜間燈籠散策', category: '好逛', visited: false, notes: '拍夜景氣氛超讚' }
+        ];
+
+        let currentFilter = '全部';
+        let currentSpotKey = '';
+
+        /* ================= 3. 漢堡選單邏輯 (依 Prompt 指定邏輯) ================= */
+        const toggleBtn = document.getElementById('navToggle');
+        const closeNavBtn = document.getElementById('closeNavBtn');
+        const navMenu = document.getElementById('navMenu');
+        const navOverlay = document.getElementById('navOverlay');
+        const toggleIcon = document.getElementById('toggleIcon');
+
+        function openNav() {
+            navMenu.classList.remove('closed');
+            navOverlay.classList.remove('hidden');
+            toggleIcon.classList.remove('fa-bars');
+            toggleIcon.classList.add('fa-xmark');
+        }
+
+        function closeNav() {
+            navMenu.classList.add('closed');
+            navOverlay.classList.add('hidden');
+            toggleIcon.classList.remove('fa-xmark');
+            toggleIcon.classList.add('fa-bars');
+        }
+
+        toggleBtn.addEventListener('click', () => {
+            if (navMenu.classList.contains('closed')) {
+                openNav();
+            } else {
+                closeNav();
+            }
+        });
+
+        closeNavBtn.addEventListener('click', closeNav);
+
+        // 子選單展開/收合 (依照 Prompt 提供的 JS 結構)
+        document.querySelectorAll('.submenu-toggle').forEach(toggle => {
+            toggle.addEventListener('click', () => {
+                const parent = toggle.closest('.has-submenu');
+                parent.classList.toggle('open');
+            });
+        });
+
+        /* ================= 4. 頁面切換 SPA 邏輯 ================= */
+        function showSection(sectionId) {
+            document.getElementById('homeSection').classList.add('hidden');
+            document.getElementById('spotDetailSection').classList.add('hidden');
+            document.getElementById('bookmarksSection').classList.add('hidden');
+
+            const backHomeBtn = document.getElementById('backToHomeBtn');
+
+            if (sectionId === 'home') {
+                document.getElementById('homeSection').classList.remove('hidden');
+                backHomeBtn.classList.add('hidden');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            } else if (sectionId === 'bookmarks') {
+                document.getElementById('bookmarksSection').classList.remove('hidden');
+                backHomeBtn.classList.remove('hidden');
+                renderBookmarks();
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+        }
+
+        /* ================= 5. 景點詳情頁開啟 ================= */
+        function openSpotDetail(spotKey) {
+            const spot = spotsData[spotKey];
+            if (!spot) return;
+
+            currentSpotKey = spotKey;
+            document.getElementById('spotBannerImg').src = spot.img;
+            document.getElementById('spotTitle').textContent = spot.name;
+            document.getElementById('spotSubTitle').textContent = spot.subtitle;
+            document.getElementById('spotDescription').textContent = spot.desc;
+
+            // Google Map 按鈕連結
+            document.getElementById('openGoogleMapBtn').onclick = () => {
+                window.open(spot.googleMap, '_blank');
+            };
+
+            // 加入收藏按鈕
+            document.getElementById('addCurrentToBookmarkBtn').onclick = () => {
+                addSpecificSpotToBookmark(spot.name);
+            };
+
+            // 交通列表
+            const transList = document.getElementById('spotTransportList');
+            transList.innerHTML = '';
+            spot.transports.forEach(item => {
+                const li = document.createElement('li');
+                li.textContent = item;
+                transList.appendChild(li);
+            });
+
+            // 顯示景點頁面
+            document.getElementById('homeSection').classList.add('hidden');
+            document.getElementById('bookmarksSection').classList.add('hidden');
+            document.getElementById('spotDetailSection').classList.remove('hidden');
+            document.getElementById('backToHomeBtn').classList.remove('hidden');
+
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        /* ================= 6. Hero 橫幅特效與地圖動態 ================= */
+        const heroBanner = document.getElementById('heroBanner');
+        const tainanStamp = document.getElementById('tainanStamp');
+
+        heroBanner.addEventListener('click', () => {
+            tainanStamp.classList.remove('opacity-0', 'scale-50');
+            tainanStamp.classList.add('opacity-100', 'scale-100');
+
+            setTimeout(() => {
+                tainanStamp.classList.remove('opacity-100', 'scale-100');
+                tainanStamp.classList.add('opacity-0', 'scale-50');
+            }, 3000);
+        });
+
+        // 3D 地圖展開/折疊
+        const foldBtn = document.getElementById('toggleMapFoldBtn');
+        const mapElement = document.getElementById('interactiveMap');
+        const foldBtnText = document.getElementById('foldBtnText');
+
+        foldBtn.addEventListener('click', () => {
+            if (mapElement.classList.contains('folded')) {
+                mapElement.classList.remove('folded');
+                foldBtnText.textContent = '折疊地圖';
+            } else {
+                mapElement.classList.add('folded');
+                foldBtnText.textContent = '展開手繪地圖';
+            }
+        });
+
+        /* ================= 7. 收藏與行程規劃邏輯 ================= */
+        function saveBookmarks() {
+            localStorage.setItem('tainan_bookmarks', JSON.stringify(bookmarks));
+            updateProgressBar();
+        }
+
+        function updateProgressBar() {
+            if (bookmarks.length === 0) {
+                document.getElementById('progressBar').style.width = '0%';
+                document.getElementById('progressPercentageText').textContent = '0%';
+                return;
+            }
+            const visitedCount = bookmarks.filter(b => b.visited).length;
+            const percentage = Math.round((visitedCount / bookmarks.length) * 100);
+            
+            document.getElementById('progressBar').style.width = percentage + '%';
+            document.getElementById('progressPercentageText').textContent = percentage + '%';
+        }
+
+        function renderBookmarks() {
+            const container = document.getElementById('bookmarkList');
+            container.innerHTML = '';
+
+            const filtered = bookmarks.filter(item => {
+                if (currentFilter === '全部') return true;
+                return item.category === currentFilter;
+            });
+
+            if (filtered.length === 0) {
+                container.innerHTML = `<div class="text-center py-8 text-vintageDull/60 font-serifTC">目前沒有「${currentFilter}」分類的收藏景點喔！</div>`;
+                updateProgressBar();
+                return;
+            }
+
+            filtered.forEach(item => {
+                const card = document.createElement('div');
+                card.className = "bg-paper border-2 border-primary/30 rounded-xl overflow-hidden shadow-sm transition-all";
+                
+                card.innerHTML = `
+                    <!-- 標題列 (預設顯示，點擊展開/收合) -->
+                    <div onclick="toggleBookmarkCollapse(${item.id})" class="p-4 bg-paperDark/40 flex items-center justify-between cursor-pointer hover:bg-paperDark/70 transition">
+                        <div class="flex items-center space-x-3">
+                            <i class="fa-solid ${item.visited ? 'fa-circle-check text-secondary' : 'fa-circle-dot text-primary'} text-xl"></i>
+                            <span class="font-bold text-lg text-primary ${item.visited ? 'line-through opacity-70' : ''}">${item.name}</span>
+                            <span class="text-xs px-2 py-0.5 rounded-full bg-secondary/10 text-secondary font-bold">${item.category}</span>
+                        </div>
+                        <div class="flex items-center space-x-2 text-sm text-vintageDull/70">
+                            <span>${item.visited ? '已走訪' : '待走訪'}</span>
+                            <i id="arrow-${item.id}" class="fa-solid fa-chevron-down transition-transform duration-300"></i>
+                        </div>
+                    </div>
+
+                    <!-- 折疊內容區塊 -->
+                    <div id="content-${item.id}" class="hidden p-4 border-t border-primary/20 space-y-4 bg-paper">
+                        
+                        <!-- 分類選擇 (帶底色膠囊) -->
+                        <div>
+                            <label class="block text-xs font-bold text-secondary mb-1">分類標籤：</label>
+                            <div class="flex flex-wrap gap-2 text-xs">
+                                ${['全部', '好玩', '好吃', '好逛', '好文青', '其他'].map(cat => `
+                                    <label class="cursor-pointer px-3 py-1 rounded-full border ${item.category === cat ? 'bg-primary text-paper border-primary font-bold' : 'bg-paperDark/50 text-vintageDull border-primary/20'}">
+                                        <input type="radio" name="cat-${item.id}" value="${cat}" ${item.category === cat ? 'checked' : ''} onchange="updateCategory(${item.id}, '${cat}')" class="hidden">
+                                        ▢ ${cat}
+                                    </label>
+                                `).join('')}
+                            </div>
+                        </div>
+
+                        <!-- 累積進度 (已走訪/待走訪) -->
+                        <div>
+                            <label class="block text-xs font-bold text-secondary mb-1">走訪狀態：</label>
+                            <div class="flex gap-3 text-sm">
+                                <label class="cursor-pointer flex items-center space-x-1 px-3 py-1 rounded bg-paperDark/50 border border-primary/20">
+                                    <input type="radio" name="visit-${item.id}" value="true" ${item.visited ? 'checked' : ''} onchange="updateVisited(${item.id}, true)" class="text-primary focus:ring-primary">
+                                    <span>已走訪</span>
+                                </label>
+                                <label class="cursor-pointer flex items-center space-x-1 px-3 py-1 rounded bg-paperDark/50 border border-primary/20">
+                                    <input type="radio" name="visit-${item.id}" value="false" ${!item.visited ? 'checked' : ''} onchange="updateVisited(${item.id}, false)" class="text-primary focus:ring-primary">
+                                    <span>待走訪</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- 備註輸入框 (自動保存) -->
+                        <div>
+                            <label class="block text-xs font-bold text-secondary mb-1">備註筆記 (自動儲存)：</label>
+                            <input type="text" value="${item.notes || ''}" oninput="updateNotes(${item.id}, this.value)" placeholder="寫下個人心得或注意事項..." class="w-full px-3 py-2 text-sm rounded border border-primary/30 bg-white focus:outline-none focus:border-primary">
+                        </div>
+
+                        <!-- 刪除按鈕 -->
+                        <div class="text-right pt-2">
+                            <button onclick="deleteBookmark(${item.id})" class="text-xs text-red-600 hover:underline">
+                                <i class="fa-solid fa-trash mr-1"></i>刪除此收藏
+                            </button>
+                        </div>
+                    </div>
+                `;
+
+                container.appendChild(card);
+            });
+
+            updateProgressBar();
+        }
+
+        // 折疊切換
+        function toggleBookmarkCollapse(id) {
+            const content = document.getElementById(`content-${id}`);
+            const arrow = document.getElementById(`arrow-${id}`);
+            if (content.classList.contains('hidden')) {
+                content.classList.remove('hidden');
+                arrow.classList.add('rotate-180');
+            } else {
+                content.classList.add('hidden');
+                arrow.classList.remove('rotate-180');
+            }
+        }
+
+        // 分類篩選列
+        function filterBookmarks(category) {
+            currentFilter = category;
+            document.querySelectorAll('#filterBtnContainer button').forEach(btn => {
+                if (btn.textContent.trim() === category) {
+                    btn.className = "filter-btn active px-4 py-1.5 rounded-full text-sm font-bold bg-primary text-paper border border-primary";
+                } else {
+                    btn.className = "filter-btn px-4 py-1.5 rounded-full text-sm font-bold bg-paper text-secondary border border-secondary/40 hover:bg-paperDark";
+                }
+            });
+            renderBookmarks();
+        }
+
+        // 更新狀態函式
+        function updateCategory(id, newCat) {
+            const item = bookmarks.find(b => b.id === id);
+            if (item) {
+                item.category = newCat;
+                saveBookmarks();
+            }
+        }
+
+        function updateVisited(id, isVisited) {
+            const item = bookmarks.find(b => b.id === id);
+            if (item) {
+                item.visited = isVisited;
+                saveBookmarks();
+                renderBookmarks();
+            }
+        }
+
+        function updateNotes(id, text) {
+            const item = bookmarks.find(b => b.id === id);
+            if (item) {
+                item.notes = text;
+                saveBookmarks();
+            }
+        }
+
+        function deleteBookmark(id) {
+            bookmarks = bookmarks.filter(b => b.id !== id);
+            saveBookmarks();
+            renderBookmarks();
+        }
+
+        /* Modal 新增按鈕邏輯 */
+        function openAddModal() {
+            document.getElementById('addModal').classList.remove('hidden');
+            document.getElementById('newSpotInput').focus();
+        }
+
+        function closeAddModal() {
+            document.getElementById('addModal').classList.add('hidden');
+            document.getElementById('newSpotInput').value = '';
+        }
+
+        function addNewBookmark() {
+            const name = document.getElementById('newSpotInput').value.trim();
+            if (!name) return;
+
+            const newItem = {
+                id: Date.now(),
+                name: name,
+                category: '好文青',
+                visited: false,
+                notes: ''
+            };
+
+            bookmarks.unshift(newItem);
+            saveBookmarks();
+            closeAddModal();
+            renderBookmarks();
+        }
+
+        function addSpecificSpotToBookmark(spotName) {
+            const exists = bookmarks.some(b => b.name === spotName);
+            if (exists) {
+                alert('這個景點已經在您的收藏清單中囉！');
+            } else {
+                bookmarks.unshift({
+                    id: Date.now(),
+                    name: spotName,
+                    category: '好文青',
+                    visited: false,
+                    notes: '從景點介紹快速加入'
+                });
+                saveBookmarks();
+                alert(`已將「${spotName}」加入收藏清單！`);
+            }
+        }
+
+        // 初始化
+        window.onload = function() {
+            updateProgressBar();
+        };
+    </script>
+
+    </div>
+
+     <!-- 3D 折疊地圖效果（預設加上 folded） -->
+    <div class="map-container">
+    <div id="mapFold" class="map-fold folded flex">
+    
+        <!-- 可放左側景點地標按鈕/圖示（如：海安路、神農街） -->
+        <div class="fold-left w-1/3 h-96 bg-map">
+        </div>
+        
+        <!-- 可放中間景點地標按鈕/圖示（如：赤崁樓、林百貨） -->
+        <div class="fold-center w-1/3 h-96 bg-map">
+        </div>
+        
+        <!-- 可放右側景點地標按鈕/圖示（如：台南火車站、台南孔廟） -->
+        <div class="fold-right w-1/3 h-96 bg-map">
+        </div>
+    </div>
+    </div>
+
+    <!-- 在 </body> 前載入背景動畫腳本 -->
+    <script src="tainan-bg.js">
+    </script>
+
+</body>
+</html>
